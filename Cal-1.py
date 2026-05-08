@@ -1,4 +1,113 @@
 #adding comments to be pushed to vs code
+
+Module summary:
+    Utilities for resolving two places (by name or "lat,lon" coordinates),
+    computing the great-circle distance between them using the haversine formula,
+    and printing a human-friendly formatted result in kilometers and miles.
+
+
+Module-level behavior and notes:
+    - Supports input as place names (geocoded via the OpenStreetMap Nominatim API)
+      or as explicit coordinates in "lat,lon" string form.
+    - Uses a custom User-Agent header when contacting Nominatim to comply with
+      API requirements. Be mindful of Nominatim usage policy and rate limits.
+    - Network calls may raise URLError/HTTPError or timeout exceptions; these
+      should be handled by callers if programmatic use is required.
+    - Coordinates are validated to be within standard latitude/longitude ranges.
+    - Distances are returned in kilometers and formatted with an equivalent in miles.
+
+Functions (explanatory comments):
+
+    haversine(lat1, lon1, lat2, lon2)
+        - Purpose:
+            Compute the great-circle distance between two geographic points
+            on the Earth using the haversine formula.
+        - Parameters:
+            lat1, lon1: float - latitude and longitude of the first point in degrees.
+            lat2, lon2: float - latitude and longitude of the second point in degrees.
+        - Returns:
+            float - distance between the two points in kilometers.
+        - Implementation notes:
+            Converts degrees to radians, computes the haversine of the central
+            angle, and multiplies by the mean Earth radius (approx. 6371.0088 km).
+            Numerically stable for short and long distances.
+
+    geocode(place)
+        - Purpose:
+            Resolve a place name (free-text) to a pair of (latitude, longitude)
+            by querying the Nominatim search API.
+        - Parameters:
+            place: str - free-text place name or address to geocode.
+        - Returns:
+            tuple(float, float) - (latitude, longitude) of the top search result.
+        - Errors / Exceptions:
+            Raises ValueError if the API returns no results for the given place.
+            Network-related exceptions (timeouts, HTTP errors) may also be raised
+            by the underlying HTTP library; callers may catch these.
+        - Implementation notes:
+            Sends a GET request with format=json and limit=1, and parses the
+            returned JSON to extract lat/lon. A descriptive User-Agent header
+            is supplied to the API request.
+
+    parse_point(s)
+        - Purpose:
+            Parse a string input into a geographic point (lat, lon).
+            Accepts either "lat,lon" numeric coordinates or a place name.
+        - Parameters:
+            s: str - input string provided by the user or CLI.
+        - Returns:
+            tuple(float, float) - (latitude, longitude).
+        - Behavior:
+            If the string contains a comma and both parts can be parsed as floats,
+            the function validates the numeric ranges (-90..90 for latitude,
+            -180..180 for longitude) and returns them.
+            Otherwise, it defers to geocode(s) to resolve the input as a place name.
+        - Notes:
+            Robust to whitespace and basic formatting errors; returns the first
+            geocoding match for place names.
+
+    format_dist_km_mi(km)
+        - Purpose:
+            Create a human-friendly string representation of a distance given
+            in kilometers, including a miles equivalent.
+        - Parameters:
+            km: float - distance in kilometers.
+        - Returns:
+            str - formatted string, precision chosen based on magnitude.
+        - Behavior:
+            Converts kilometers to miles (1 km ≈ 0.62137119223733 mi).
+            Uses higher precision for smaller distances and shorter formatting
+            for very large distances (>= 1000 km).
+
+    main(argv)
+        - Purpose:
+            Command-line entry point to accept two place arguments (or prompt
+            interactively), resolve them to coordinates, compute the distance,
+            and print results.
+        - Parameters:
+            argv: list - typically sys.argv from the caller; expects at least two
+            positional arguments after the program name, otherwise falls back to
+            interactive prompts.
+        - Behavior:
+            1. Read two inputs (from argv or via input()).
+            2. Parse or geocode each input to (lat, lon) using parse_point().
+            3. Compute distance with haversine().
+            4. Print coordinates and a human-readable distance string.
+        - Notes:
+            - Handles KeyboardInterrupt/EOFError during interactive input by
+              exiting cleanly.
+            - Prints error information if point resolution fails.
+            - Suitable for CLI usage; for library-style usage, import haversine
+              and parse_point directly and handle exceptions as needed.
+
+Possible improvements and warnings:
+    - Add retry/backoff and caching around geocoding to reduce API load and
+      improve robustness against transient network errors.
+    - Respect Nominatim's usage policy (identify your application, limit
+      request rate, and consider bulk/geocoding alternatives for heavy use).
+    - Add unit tests for parse_point edge cases and haversine correctness.
+    - Consider improving printed output (e.g., ANSI formatting) or providing
+      machine-readable output (JSON) for integration with other tools.
 import sys
 import math
 import json
