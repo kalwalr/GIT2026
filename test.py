@@ -1,3 +1,4 @@
+#This is simple calculator application
 creeate a simple python code to calculate the area of a circle given its radius.import math
 def calculate_circle_area(radius):
     if radius < 0:
